@@ -12,7 +12,8 @@ echo "Starting Dynamic Deployment..."
 # 2. Start building the new Apache Config string
 # We use a variable to store the 'routing' part of the config
 ROUTES_CONFIG=""
-
+# Inside postcreate.sh
+ln -sf /workspaces/try-apache/jwt-public.pem /var/www/silos/jwt-public.pem
 if [ -f "$SOURCE_DIR/$MANIFEST" ]; then
     # Link all .html files so the templates are in the same folder as the scripts
     ln -sf /workspaces/try-apache/*.html /var/www/silos/
@@ -47,26 +48,34 @@ fi
 
 # 3. Rewrite the Apache VirtualHost file entirely
 # This ensures the config is always fresh and matches the manifest
-cat <<EOF > "$APACHE_CONF"
+# ... inside postcreate.sh, after the loop builds $ROUTES_CONFIG ...
+
+cat <<EOF > /etc/apache2/sites-available/000-default.conf
+# This ensures silos can import theme.py or libraries in the same folder
+WSGIPythonPath $SILO_DIR
+
 <VirtualHost *:80>
-    DocumentRoot /var/www/html
+    # The Silo looks for this variable to find its certificate
+    SetEnv JWT_PUBLIC_KEY_PATH /var/www/silos/jwt-public.pem
     
-    WSGIPythonPath /var/www/silos
+    DocumentRoot /var/www/html
+
+    # Warm-start Python Daemon
     WSGIDaemonProcess python_silo processes=2 threads=15
     WSGIProcessGroup python_silo
     WSGIApplicationGroup %{GLOBAL}
+    
 
-    # --- DYNAMIC ROUTES START ---
+    # --- DYNAMICALLY GENERATED ROUTES ---
     $ROUTES_CONFIG
-    # --- DYNAMIC ROUTES END ---
+    # ------------------------------------
 
-    <Directory $SILO_DIR>
-        Require all granted
-    </Directory>
-
-    <Directory /var/www/html>
-        Options -Indexes
-        Require all granted
+    <Directory /var/www/silos>
+        # Secure the directory: Only allow WSGI access
+        Require all denied
+        <FilesMatch "\.(py|html)$">
+            Require all granted
+        </FilesMatch>
     </Directory>
 
     ErrorLog \${APACHE_LOG_DIR}/error.log
