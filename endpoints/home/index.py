@@ -1,11 +1,13 @@
 from jinja2 import Environment, FileSystemLoader
 import os
 import datetime
+from middleware import allowverbs
 
 # Initialize Jinja environment (remains warm in RAM)
 loader = FileSystemLoader('/var/www/silos')
 env = Environment(loader=loader)
 
+@allowverbs('GET')
 def application(environ, start_response):
     status = '200 OK'
     headers = [('Content-type', 'text/html')]

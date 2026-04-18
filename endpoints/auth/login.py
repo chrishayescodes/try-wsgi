@@ -2,10 +2,12 @@ import jwt
 import datetime
 import json
 import os
+from middleware import allowverbs
 
 # Configuration
 PRIVATE_KEY_PATH = "/var/www/silos/jwt-private.pem"
 
+@allowverbs('POST')
 def application(environ, start_response):
     # 1. Only allow POST requests
     if environ.get('REQUEST_METHOD') != 'POST':

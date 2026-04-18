@@ -11,6 +11,17 @@ logger = logging.getLogger("silo_logger")
 # The decorator is initialized once, but we pull the key inside the wrapper
 # to handle any environment variable injections from Apache.
 
+def allowverbs(*verbs):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(environ, start_response):
+            if environ.get('REQUEST_METHOD') not in verbs:
+                start_response('405 Method Not Allowed', [('Content-Type', 'text/plain')])
+                return [b"Method Not Allowed"]
+            return func(environ, start_response)
+        return wrapper
+    return decorator
+
 def require_jwt(func):
     @functools.wraps(func)
     def wrapper(environ, start_response):

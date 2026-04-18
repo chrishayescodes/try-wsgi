@@ -1,11 +1,12 @@
 import os
 from jinja2 import Environment, FileSystemLoader
-from middleware import require_jwt, logger
+from middleware import require_jwt, logger, allowverbs
 
 # Initialize the warm Jinja2 environment
 loader = FileSystemLoader('/var/www/silos')
 env = Environment(loader=loader)
 
+@allowverbs('GET')
 @require_jwt
 def application(environ, start_response):
     # 1. Access the "Claims" injected by our middleware
