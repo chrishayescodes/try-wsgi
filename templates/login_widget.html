@@ -1,0 +1,92 @@
+<div id="auth-container" style="border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 5px; background: #fff;">
+    <div id="login-form">
+        <h3 style="margin-top: 0;">System Login</h3>
+        <div style="margin-bottom: 10px;">
+            <input type="text" id="username" placeholder="Username" style="width: 100%; padding: 5px; margin-bottom: 5px;">
+            <input type="password" id="password" placeholder="Password" style="width: 100%; padding: 5px;">
+        </div>
+        <button onclick="performLogin()" style="background: #005a9e; color: white; border: none; padding: 8px 15px; border-radius: 3px; cursor: pointer;">Login</button>
+    </div>
+
+    <div id="user-profile" style="display: none;">
+        <h3 style="margin-top: 0;">User Profile</h3>
+        <p>Logged in as: <strong id="display-name">Admin User</strong></p>
+        <button onclick="performLogout()" style="background: #d9534f; color: white; border: none; padding: 8px 15px; border-radius: 3px; cursor: pointer;">Logout</button>
+        <button onclick="testSecureSilo()" style="background: #5cb85c; color: white; border: none; padding: 8px 15px; border-radius: 3px; cursor: pointer; margin-left: 5px;">Test Reports</button>
+    </div>
+    
+    <div id="auth-message" style="margin-top: 10px; color: red; font-size: 0.9em;"></div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Since we use HttpOnly cookies, JS cannot see the token.
+        // We use a simple UI flag in localStorage to track visual state.
+        const isLoggedIn = localStorage.getItem('is_logged_in');
+        if (isLoggedIn === 'true') {
+            showProfile();
+        } else {
+            showLogin();
+        }
+    });
+
+    async function performLogin() {
+        const user = document.getElementById('username').value;
+        const pass = document.getElementById('password').value;
+        const msg = document.getElementById('auth-message');
+        
+        msg.innerText = "Attempting login...";
+
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass })
+            });
+            
+            const data = await response.json();
+
+            if (response.ok && data.status === 'success') {
+                // Set UI flag and update view
+                localStorage.setItem('is_logged_in', 'true');
+                showProfile();
+                msg.innerText = "";
+                // Refresh the page to ensure all silos see the new cookie
+                location.reload();
+            } else {
+                msg.innerText = data.error || "Invalid credentials";
+            }
+        } catch (err) {
+            msg.innerText = "Connection error to Login Silo";
+            console.error(err);
+        }
+    }
+
+    async function performLogout() {
+        try {
+            // Call the logout silo to clear the HttpOnly cookie
+            await fetch('/api/logout', { method: 'POST' });
+        } catch (err) {
+            console.error("Logout request failed, clearing local state anyway.");
+        }
+        
+        localStorage.removeItem('is_logged_in');
+        showLogin();
+        location.reload();
+    }
+
+    function testSecureSilo() {
+        // Redirect to reports page
+        window.location.href = "/api/reports";
+    }
+
+    function showProfile() {
+        document.getElementById('login-form').style.display = 'none';
+        document.getElementById('user-profile').style.display = 'block';
+    }
+
+    function showLogin() {
+        document.getElementById('login-form').style.display = 'block';
+        document.getElementById('user-profile').style.display = 'none';
+    }
+</script>

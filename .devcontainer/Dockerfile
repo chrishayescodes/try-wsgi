@@ -7,20 +7,27 @@ RUN apt-get update && apt-get install -y \
     libapache2-mod-wsgi-py3 \
     python3 \
     python3-jinja2 \
+    python3-jwt \
+    python3-yaml \
     dos2unix \
     curl \
+    wget \
     git \
     && apt-get clean
+
+# INSTALL YQ (Mike Farah version) 
+# This detects your architecture (Intel vs Apple Silicon) automatically
+RUN wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$(dpkg --print-architecture) -O /usr/bin/yq && \
+    chmod +x /usr/bin/yq
 
 # Enable the persistent WSGI engine
 RUN a2enmod wsgi
 
-# Silence FQDN warning and copy config
+# Silence FQDN warning
 RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
-COPY wsgi-silo.conf /etc/apache2/sites-available/000-default.conf
 
 # Create the private silo directory
 RUN mkdir -p /var/www/silos
 
-# Startup command to source env and run in foreground
+# Startup command
 CMD ["/bin/bash", "-c", "source /etc/apache2/envvars && exec /usr/sbin/apache2 -D FOREGROUND"]

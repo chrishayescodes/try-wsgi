@@ -1,0 +1,20 @@
+version: "1.0"
+infrastructure:
+  - path: "infra/middleware.py"
+  - path: "infra/theme.py"
+  - path: "infra/jwt-public.pem"
+  - path: "infra/jwt-private.pem"
+  
+endpoints:
+  - slug: "login" # This creates the /api/login URL
+    handler: "endpoints/auth/login.py"
+    template: "endpoints/auth/login.html" # If you have a dedicated login page
+  - slug: "logout"
+    handler: "endpoints/auth/logout.py"
+    template: "endpoints/auth/login.html"
+  - slug: "home"
+    handler: "endpoints/home/index.py"
+    template: "endpoints/home/index.html"
+  - slug: "reports"
+    handler: "endpoints/reports/index.py"
+    template: "endpoints/reports/report.html"

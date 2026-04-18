@@ -3,7 +3,7 @@ import os
 import datetime
 
 # Initialize Jinja environment (remains warm in RAM)
-loader = FileSystemLoader(os.path.dirname(__file__))
+loader = FileSystemLoader('/var/www/silos')
 env = Environment(loader=loader)
 
 def application(environ, start_response):
@@ -21,7 +21,7 @@ def application(environ, start_response):
     }
 
     # 2. Render
-    template = env.get_template('hello.html')
+    template = env.get_template('home_template.html')
     output = template.render(data)
 
     return [output.encode('utf-8')]
