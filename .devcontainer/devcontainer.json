@@ -1,0 +1,11 @@
+{
+    "name": "Apache Enterprise Silos",
+    "build": { 
+        "dockerfile": "Dockerfile",
+        "context": ".." 
+    },
+    "forwardPorts": [80],
+    "overrideCommand": false,
+    "postCreateCommand": "chmod +x postcreate.sh && ./postcreate.sh",
+    "remoteUser": "root"
+}
