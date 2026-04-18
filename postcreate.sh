@@ -14,6 +14,8 @@ echo "Starting Dynamic Deployment..."
 ROUTES_CONFIG=""
 
 if [ -f "$SOURCE_DIR/$MANIFEST" ]; then
+    # Link all .html files so the templates are in the same folder as the scripts
+    ln -sf /workspaces/try-apache/*.html /var/www/silos/
     while IFS= read -r filename || [ -n "$filename" ]; do
         # Trim whitespace
         filename=$(echo "$filename" | xargs)
@@ -48,7 +50,8 @@ fi
 cat <<EOF > "$APACHE_CONF"
 <VirtualHost *:80>
     DocumentRoot /var/www/html
-
+    
+    WSGIPythonPath /var/www/silos
     WSGIDaemonProcess python_silo processes=2 threads=15
     WSGIProcessGroup python_silo
     WSGIApplicationGroup %{GLOBAL}
