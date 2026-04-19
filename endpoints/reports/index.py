@@ -7,7 +7,7 @@ loader = FileSystemLoader('/var/www/silos')
 env = Environment(loader=loader)
 
 @allowverbs('GET')
-@require_jwt
+@require_jwt(required_type='access')
 def application(environ, start_response):
     # 1. Access the "Claims" injected by our middleware
     user_claims = environ.get('user_claims', {})

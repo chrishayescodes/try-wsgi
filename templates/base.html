@@ -29,5 +29,38 @@
 
         <footer>&copy; 2026 Enterprise Silos</footer>
     </div>
+    <script>
+        // Global Fetch Interceptor
+        const originalFetch = window.fetch;
+
+        window.fetch = async (...args) => {
+            let response = await originalFetch(...args);
+
+            // If we hit a 401, the Access Token is likely expired
+            if (response.status === 401) {
+                console.warn("Access token expired. Attempting refresh...");
+
+                // Call the dedicated refresh silo
+                const refreshResponse = await originalFetch('/refresh', { 
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (refreshResponse.ok) {
+                    console.log("Refresh successful. Retrying original request.");
+                    // The refresh silo just set a new 'silo_token' cookie.
+                    // Now we retry the original request once.
+                    return await originalFetch(...args);
+                } else {
+                    console.error("Refresh failed. Redirecting to login.");
+                    // If refresh fails (e.g., refresh token also expired), 
+                    // clear session and send to home/login.
+                    window.location.href = '/?error=session_expired';
+                }
+            }
+
+            return response;
+        };
+    </script>
 </body>
 </html>

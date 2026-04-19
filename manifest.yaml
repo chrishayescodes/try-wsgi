@@ -6,12 +6,14 @@ infrastructure:
   - path: "infra/jwt-private.pem"
   
 endpoints:
-  - slug: "login" # This creates the /api/login URL
+  - slug: "login"
     handler: "endpoints/auth/login.py"
-    template: "endpoints/auth/login.html" # If you have a dedicated login page
+    template: "endpoints/auth/login.html"
   - slug: "logout"
     handler: "endpoints/auth/logout.py"
     template: "endpoints/auth/login.html"
+  - slug: "refresh"
+    handler: "endpoints/auth/refresh.py"
   - slug: "reports"
     handler: "endpoints/reports/index.py"
     template: "endpoints/reports/reports.html"

@@ -1,15 +1,23 @@
-import json
+import http.cookies
 from middleware import allowverbs
 
 @allowverbs('POST')
 def application(environ, start_response):
-    # To clear an HttpOnly cookie, we send it back with an expired date
-    cookie_value = "silo_token=; Path=/; HttpOnly; SameSite=Strict; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    cookie = http.cookies.SimpleCookie()
     
-    headers = [
-        ('Content-Type', 'application/json'),
-        ('Set-Cookie', cookie_value)
-    ]
-    
-    start_response('200 OK', headers)
-    return [json.dumps({"status": "success", "message": "Logged out"}).encode('utf-8')]
+    # Expire the Access Token
+    cookie['silo_token'] = ''
+    cookie['silo_token']['path'] = '/'
+    cookie['silo_token']['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
+
+    # Expire the Refresh Token (Must match the original path!)
+    cookie['refresh_token'] = ''
+    cookie['refresh_token']['path'] = '/refresh'
+    cookie['refresh_token']['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
+
+    start_response('302 Found', [
+        ('Set-Cookie', cookie['silo_token'].OutputString()),
+        ('Set-Cookie', cookie['refresh_token'].OutputString()),
+        ('Location', '/')
+    ])
+    return [b"Redirecting..."]
