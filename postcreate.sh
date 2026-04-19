@@ -12,32 +12,41 @@ yq e '.infrastructure[].path' "$MANIFEST" | while read path; do
     ln -sf "$SOURCE_DIR/$path" "$SILO_DIR/$(basename $path)"
 done
 
+# ... (Infrastructure linking stays the same) ...
+
 # 2. Link Global Templates
 ln -sf "$SOURCE_DIR/templates/"* "$SILO_DIR/"
 
 # 3. Deploy Endpoints
 echo "Deploying Endpoints..."
-ROUTES_CONFIG=""
+endpoint_config=""
 
-# Loop through endpoints in YAML
 endpoint_count=$(yq e '.endpoints | length' "$MANIFEST")
 for ((i=0; i<$endpoint_count; i++)); do
-    slug=$(yq e ".endpoints[$i].slug" "$MANIFEST")
+    slug=$(yq e ".endpoints[$i].slug" "$MANIFEST" | xargs)
     handler=$(yq e ".endpoints[$i].handler" "$MANIFEST")
-    template=$(yq e ".endpoints[$i].template" "$MANIFEST")
+    template=$(yq e ".endpoints[$i].template" "$MANIFEST") # <--- ADD THIS
     
-    # We rename the handler to include the slug to avoid 'index.py' collisions
-    # e.g. endpoints/home/index.py -> /var/www/silos/home_silo.py
-    target_filename="${slug}_silo.py"
+    # 1. Handle Handler renaming for Root vs Slugs
+    if [ -z "$slug" ] || [ "$slug" == "null" ]; then
+        target_filename="root_home_silo.py"
+        url_path="/"
+    else
+        target_filename="${slug}_silo.py"
+        url_path="/$slug"
+    fi
+    
     ln -sf "$SOURCE_DIR/$handler" "$SILO_DIR/$target_filename"
     
-    # Link the specific template with a unique name
-    target_template="${slug}_template.html"
-    ln -sf "$SOURCE_DIR/$template" "$SILO_DIR/$target_template"
+    # 2. THE FIX: Link the feature-specific template into the flat silo root
+    if [ "$template" != "null" ]; then
+        ln -sf "$SOURCE_DIR/$template" "$SILO_DIR/$(basename $template)"
+        echo "Linked Template: $(basename $template)"
+    fi
     
-    # Build Apache Route
+    # 3. Build Apache Route
     ROUTES_CONFIG="$ROUTES_CONFIG
-    WSGIScriptAlias /api/$slug $SILO_DIR/$target_filename"
+    WSGIScriptAlias $url_path $SILO_DIR/$target_filename"
     
     dos2unix "$SOURCE_DIR/$handler"
     chmod +x "$SOURCE_DIR/$handler"

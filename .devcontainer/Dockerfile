@@ -4,6 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
     apache2 \
+    tree \
     libapache2-mod-wsgi-py3 \
     python3 \
     python3-jinja2 \

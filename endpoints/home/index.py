@@ -23,7 +23,7 @@ def application(environ, start_response):
     }
 
     # 2. Render
-    template = env.get_template('home_template.html')
+    template = env.get_template('index.html')
     output = template.render(data)
 
     return [output.encode('utf-8')]

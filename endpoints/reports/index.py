@@ -25,7 +25,7 @@ def application(environ, start_response):
     }
 
     # 3. Render the View
-    template = env.get_template('reports_template.html')
+    template = env.get_template('reports.html')
     output = template.render(report_data)
 
     start_response('200 OK', [('Content-type', 'text/html')])
