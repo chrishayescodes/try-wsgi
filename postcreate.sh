@@ -6,13 +6,21 @@ MANIFEST="$SOURCE_DIR/manifest.yaml"
 mkdir -p "$SILO_DIR"
 
 # 1. Link Infrastructure (Libraries/Keys)
-# We flatten these into the silo root so imports work simply
 echo "Deploying Infrastructure..."
 yq e '.infrastructure[].path' "$MANIFEST" | while read path; do
-    ln -sf "$SOURCE_DIR/$path" "$SILO_DIR/$(basename $path)"
+    # Only link if the file actually exists and isn't a pem file
+    if [[ -f "$SOURCE_DIR/$path" && "$path" != *.pem ]]; then
+        ln -sf "$SOURCE_DIR/$path" "$SILO_DIR/$(basename $path)"
+    fi
 done
 
-# ... (Infrastructure linking stays the same) ...
+# Ensure the web server user can access the keys in the mount
+chown -R www-data:www-data /etc/jwt-keys
+chmod 444 /etc/jwt-keys/*.pem
+
+# Add this to postcreate.sh to ensure the directory is searchable by Apache
+chmod 755 /etc/jwt-keys
+chmod 644 /etc/jwt-keys/*.pem
 
 # 2. Link Global Templates
 ln -sf "$SOURCE_DIR/templates/"* "$SILO_DIR/"
@@ -53,22 +61,29 @@ for ((i=0; i<$endpoint_count; i++)); do
 done
 
 # 4. Generate Apache Config
+# ... (inside postcreate.sh) ...
+
+# Generate Apache Config
 cat <<EOF > /etc/apache2/sites-available/000-default.conf
 WSGIPythonPath $SILO_DIR
 <VirtualHost *:80>
-    SetEnv JWT_PUBLIC_KEY_PATH /var/www/silos/jwt-public.pem
-    DocumentRoot /var/www/html
+    # SECURE PATHS: Outside of the /var/www/ web root
+    SetEnv JWT_PUBLIC_KEY_PATH /etc/jwt-keys/jwt-public.pem
+    SetEnv JWT_PRIVATE_KEY_PATH /etc/jwt-keys/jwt-private.pem
 
+    DocumentRoot /var/www/html
+    
     WSGIDaemonProcess python_silo processes=2 threads=15 python-path=$SILO_DIR
     WSGIProcessGroup python_silo
     WSGIApplicationGroup %{GLOBAL}
 
     $ROUTES_CONFIG
-
     <Directory $SILO_DIR>
         Options +FollowSymLinks
         Require all denied
-        <FilesMatch "\.(py|html|pem)$">
+        # CRITICAL: Only allow execution/reading of py and html
+        # No more .pem files allowed here!
+        <FilesMatch "\.(py|html)$">
             Require all granted
         </FilesMatch>
     </Directory>

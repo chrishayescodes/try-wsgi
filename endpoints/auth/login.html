@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Silo Login{% endblock %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 40px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+    <h2>Silo Authentication</h2>
+    <div id="page-error-msg" style="color: #d83b01; margin-bottom: 15px; display: none;"></div>
+    
+    <form id="page-login-form">
+        <div style="margin-bottom: 15px;">
+            <label style="display: block;">Username</label>
+            <input type="text" id="page-username" name="username" style="width: 100%; padding: 8px;" required>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block;">Password</label>
+            <input type="password" id="page-password" name="password" style="width: 100%; padding: 8px;" required>
+        </div>
+        <button type="submit" style="background: #005a9e; color: white; border: none; padding: 10px 20px; cursor: pointer; width: 100%;">
+            Login
+        </button>
+    </form>
+</div>
+
+<script>
+document.getElementById('page-login-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const errorDiv = document.getElementById('page-error-msg');
+    
+    // Scoped IDs to avoid conflict with the widget
+    const data = {
+        username: document.getElementById('page-username').value,
+        password: document.getElementById('page-password').value
+    };
+
+    try {
+        const response = await fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.status === 'success') {
+            localStorage.setItem('is_logged_in', 'true'); // Sync with widget logic
+            window.location.href = '/'; 
+        } else {
+            errorDiv.innerText = result.error || "Login failed";
+            errorDiv.style.display = 'block';
+        }
+    } catch (err) {
+        errorDiv.innerText = "Connection error.";
+        errorDiv.style.display = 'block';
+    }
+};
+</script>
+{% endblock %}

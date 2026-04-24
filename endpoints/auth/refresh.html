@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Refreshing Session...{% endblock %}
+
+{% block content %}
+    <h2>Secure Session Refresh</h2>
+    
+    <div id="refresh-status" style="background: #fff4ce; padding: 20px; border-left: 5px solid #ffb900; margin-bottom: 20px;">
+        <div class="loader-container" style="display: flex; align-items: center; gap: 15px;">
+            <div class="loader"></div>
+            <span>Validating your credentials, please wait...</span>
+        </div>
+    </div>
+
+    <p><small>You are being redirected back to: <code>{{ next_url }}</code></small></p>
+
+    <style>
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #005a9e;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+
+    <script>
+        (function() {
+            // The logic: Hit the same endpoint with a POST
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Success: Browser now has the new 'silo_token' cookie
+                    window.location.href = "{{ next_url }}";
+                } else {
+                    document.getElementById('refresh-status').style.borderLeftColor = "#d83b01";
+                    document.getElementById('refresh-status').style.background = "#fde7e9";
+                    document.getElementById('refresh-status').innerHTML = 
+                        "<strong>Session Expired.</strong> <p>Please <a href='/login'>login again</a> to continue.</p>";
+                }
+            })
+            .catch(err => {
+                console.error("Refresh error:", err);
+                document.getElementById('refresh-status').innerHTML = "Connection lost. Please check your network.";
+            });
+        })();
+    </script>
+{% endblock %}

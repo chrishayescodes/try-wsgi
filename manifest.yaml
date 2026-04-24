@@ -2,8 +2,6 @@ version: "1.0"
 infrastructure:
   - path: "infra/middleware.py"
   - path: "infra/theme.py"
-  - path: "infra/jwt-public.pem"
-  - path: "infra/jwt-private.pem"
   
 endpoints:
   - slug: "login"
@@ -14,6 +12,7 @@ endpoints:
     template: "endpoints/auth/login.html"
   - slug: "refresh"
     handler: "endpoints/auth/refresh.py"
+    template: "endpoints/auth/refresh.html"
   - slug: "reports"
     handler: "endpoints/reports/index.py"
     template: "endpoints/reports/reports.html"

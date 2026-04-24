@@ -30,5 +30,8 @@ RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 # Create the private silo directory
 RUN mkdir -p /var/www/silos
 
+# Create a secure directory for keys
+RUN mkdir -p /etc/jwt-keys && chmod 700 /etc/jwt-keys
+
 # Startup command
 CMD ["/bin/bash", "-c", "source /etc/apache2/envvars && exec /usr/sbin/apache2 -D FOREGROUND"]

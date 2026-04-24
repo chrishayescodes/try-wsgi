@@ -3,12 +3,30 @@ import datetime
 import json
 import os
 import http.cookies # Cleaner cookie management
+from jinja2 import Environment, FileSystemLoader
 from middleware import allowverbs
 
-PRIVATE_KEY_PATH = "/var/www/silos/jwt-private.pem"
+PRIVATE_KEY_PATH = "/etc/jwt-keys/jwt-private.pem"
 
-@allowverbs('POST')
-def application(environ, start_response):
+template_env = Environment(loader=FileSystemLoader('/var/www/silos'))
+
+@allowverbs('POST','GET')
+def application(environ,start_response):
+    method = environ.get('REQUEST_METHOD', 'GET')
+
+    if method == 'GET':
+        return handle_get(environ, start_response)
+    
+    return handle_post(environ, start_response)
+
+def handle_get(environ, start_response):
+    template = template_env.get_template('login.html')
+    # If you want to pass a message (like 'session expired'), you can pull from query params
+    output = template.render()
+    start_response('200 OK', [('Content-Type', 'text/html')])
+    return [output.encode('utf-8')]
+
+def handle_post(environ, start_response):
     try:
         request_body_size = int(environ.get('CONTENT_LENGTH', 0))
         request_body = environ['wsgi.input'].read(request_body_size)

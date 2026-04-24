@@ -27,8 +27,10 @@ def require_jwt(required_type='access'):
         @functools.wraps(func)
         def wrapper(environ, start_response):
             # 1. Configuration
-            public_key_path = os.environ.get('JWT_PUBLIC_KEY_PATH', '/var/www/silos/jwt-public.pem')
-            
+            public_key_path = environ.get('JWT_PUBLIC_KEY_PATH') or \
+                              os.environ.get('JWT_PUBLIC_KEY_PATH') or \
+                              '/etc/jwt-keys/jwt-public.pem'
+                              
             # 2. Determine which cookie to look for
             cookie_name = 'silo_token' if required_type == 'access' else 'refresh_token'
             
@@ -40,15 +42,19 @@ def require_jwt(required_type='access'):
                 token = cookie[cookie_name].value
 
             if not token:
-                start_response('401 Unauthorized', [('Content-Type', 'text/plain')])
-                return [f"Security Error: No {required_type} session found".encode()]
+                logger.error("Security Failure: No token found in cookies")
+                
+                # Redirect to login silo
+                start_response('303 See Other', [
+                    ('Location', '/login'),
+                    ('Content-Type', 'text/plain')
+                ])
+                return [b"Security Error: Redirecting to login..."]
 
             try:
-                # FIX: Ensure public_key is defined WITHIN the try block before use
                 with open(public_key_path, 'r') as f:
                     public_key = f.read()
 
-                # 3. Verify the Token
                 payload = jwt.decode(
                     token, 
                     public_key, 
@@ -56,22 +62,42 @@ def require_jwt(required_type='access'):
                     options={"verify_signature": True, "verify_exp": True}
                 )
 
-                # 4. CRITICAL: Check the token type claim
                 if payload.get('typ') != required_type:
                     start_response('403 Forbidden', [('Content-Type', 'text/plain')])
                     return [b"Security Error: Token type mismatch"]
 
                 environ['user_claims'] = payload
                 return func(environ, start_response)
-            except FileNotFoundError:
-                start_response('500 Server Error', [('Content-Type', 'text/plain')])
-                return [b'Server Error: Token']
+                
             except jwt.ExpiredSignatureError:
-                start_response('401 Unauthorized', [('Content-Type', 'text/plain')])
-                return [b"Security Error: Token expired"]
+                # Get the current URL to pass as the 'next' parameter
+                script_name = environ.get('SCRIPT_NAME', '')
+                path_info = environ.get('PATH_INFO', '')
+                query_string = environ.get('QUERY_STRING', '')
+                
+                current_url = f"{script_name}{path_info}"
+                if query_string:
+                    current_url += f"?{query_string}"
+
+                # Redirect to the refresh page (303 See Other)
+                # This triggers your new refresh.py GET logic
+                start_response('303 See Other', [
+                    ('Location', f'/refresh?next={current_url}'),
+                    ('Content-Type', 'text/plain')
+                ])
+                return [b"Redirecting to session refresh..."]
+
+            # middleware.py
+
             except (jwt.InvalidTokenError, FileNotFoundError) as e:
-                start_response('401 Unauthorized', [('Content-Type', 'text/plain')])
-                return [f"Security Error: {str(e)}".encode()]
+                logger.error(f"Security Failure: {str(e)}")
+                
+                # Redirect to login silo
+                start_response('303 See Other', [
+                    ('Location', '/login'),
+                    ('Content-Type', 'text/plain')
+                ])
+                return [b"Security Error: Redirecting to login..."]
 
         return wrapper
     return decorator

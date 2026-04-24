@@ -4,6 +4,9 @@
         "dockerfile": "Dockerfile",
         "context": ".." 
     },
+    "mounts": [
+        "source=${localWorkspaceFolder}/.devcontainer/secrets,target=/etc/jwt-keys,type=bind,readonly"
+    ],
     "forwardPorts": [80],
     "overrideCommand": false,
     "postCreateCommand": "chmod +x postcreate.sh && ./postcreate.sh",
