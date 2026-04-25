@@ -1,6 +1,7 @@
 version: "1.0"
 infrastructure:
   - path: "infra/middleware.py"
+  - path: "infra/providers.py"
   - path: "infra/theme.py"
   
 endpoints:

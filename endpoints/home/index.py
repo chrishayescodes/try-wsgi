@@ -1,29 +1,27 @@
-from jinja2 import Environment, FileSystemLoader
-import os
 import datetime
-from middleware import allowverbs
+try:
+    from middleware import allowverbs, inject_template, html_response
+except ImportError:
+    from infra.middleware import allowverbs, inject_template, html_response
 
-# Initialize Jinja environment (remains warm in RAM)
-loader = FileSystemLoader('/var/www/silos')
-env = Environment(loader=loader)
-
-@allowverbs('GET')
-def application(environ, start_response):
-    status = '200 OK'
-    headers = [('Content-type', 'text/html')]
-    start_response(status, headers)
-
-    # 1. Prepare Data
-    now = datetime.datetime.now()
+# --- Pure Logic (Testable) ---
+def get_home_data(now=None):
+    if now is None:
+        now = datetime.datetime.now()
     
-    data = {
+    return {
         "user_name": "AdminUser",
         "current_time": now.strftime("%Y-%m-%d %H:%M:%S"),
         "is_morning": now.hour < 12
     }
 
-    # 2. Render
-    template = env.get_template('index.html')
-    output = template.render(data)
+# --- WSGI Handler (The Pipeline) ---
+@allowverbs('GET')
+@inject_template
+@html_response
+def application(environ, start_response, renderer=None, **kwargs):
+    # 1. Prepare Data using pure logic
+    data = get_home_data()
 
-    return [output.encode('utf-8')]
+    # 2. Render using injected dependency
+    return renderer.render('index.html', data)

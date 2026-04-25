@@ -1,71 +1,63 @@
-import jwt
-import datetime
 import http.cookies
-from middleware import allowverbs, require_jwt
-from jinja2 import Environment, FileSystemLoader
-from urllib.parse import parse_qs
-
-# Key paths (linked into /var/www/silos/ by postcreate.sh)
-PUBLIC_KEY_PATH = '/etc/jwt-keys/jwt-public.pem'
-PRIVATE_KEY_PATH = '/etc/jwt-keys/jwt-private.pem'
+try:
+    from middleware import allowverbs, require_jwt, inject_template, inject_auth, json_response
+except ImportError:
+    from infra.middleware import allowverbs, require_jwt, inject_template, inject_auth, json_response
 
 @allowverbs('POST', 'GET')
-def application(environ, start_response):
+@inject_template
+@inject_auth
+def application(environ, start_response, renderer=None, auth=None, **kwargs):
     method = environ.get('REQUEST_METHOD', 'GET')
 
     if method == 'GET':
-        return handle_get(environ, start_response)
+        return handle_get(environ, start_response, renderer=renderer, **kwargs)
     
-    return handle_post(environ, start_response)
+    return handle_post(environ, start_response, auth=auth, **kwargs)
 
 @require_jwt(required_type='refresh')
-def handle_post(environ, start_response):
-    # Claims extracted from the Refresh Token by middleware
-    claims = environ.get('user_claims', {})
+def handle_post(environ, start_response, auth=None, user_claims=None, **kwargs):
+    claims = user_claims or {}
     
     try:
-        with open(PRIVATE_KEY_PATH, 'r') as f:
-            private_key = f.read()
-
-        # Generate NEW Access Token
-        now = datetime.datetime.utcnow()
-        payload = {
+        # Use the AuthProvider to generate NEW tokens (Rotation)
+        # We pass the existing claims (sub, name) to keep the identity
+        clean_claims = {
             "sub": claims.get('sub'),
-            "name": claims.get('name'),
-            "typ": "access", # This is the critical distinction
-            "iat": now,
-            "exp": now + datetime.timedelta(seconds=15)
+            "name": claims.get('name')
         }
-        
-        new_access_token = jwt.encode(payload, private_key, algorithm="RS256")
+        access_token, refresh_token = auth.generate_tokens(clean_claims)
 
-        # Set the Access Token Cookie
         cookie = http.cookies.SimpleCookie()
-        cookie['silo_token'] = new_access_token
+        cookie['silo_token'] = access_token
         cookie['silo_token']['httponly'] = True
         cookie['silo_token']['path'] = '/'
         cookie['silo_token']['samesite'] = 'Lax'
 
+        # Regenerating the refresh token too (rotation)
+        cookie['refresh_token'] = refresh_token
+        cookie['refresh_token']['httponly'] = True
+        cookie['refresh_token']['path'] = '/refresh'
+        cookie['refresh_token']['samesite'] = 'Lax'
+
         start_response('200 OK', [
             ('Content-Type', 'application/json'),
-            ('Set-Cookie', cookie['silo_token'].OutputString())
+            ('Set-Cookie', cookie['silo_token'].OutputString()),
+            ('Set-Cookie', cookie['refresh_token'].OutputString())
         ])
-        return [b'{"status": "refreshed"}']
+        import json
+        return [json.dumps({"status": "refreshed"}).encode('utf-8')]
 
     except Exception as e:
         start_response('500 Internal Server Error', [('Content-Type', 'text/plain')])
         return [f"Refresh failed: {str(e)}".encode()]
 
-template_env = Environment(loader=FileSystemLoader('/var/www/silos'))
-
-def handle_get(environ, start_response):
-    # Get the redirect target
+def handle_get(environ, start_response, renderer, **kwargs):
+    from urllib.parse import parse_qs
     query = parse_qs(environ.get('QUERY_STRING', ''))
     next_url = query.get('next', ['/'])[0]
     
-    # Load and render the template
-    template = template_env.get_template('refresh.html')
-    output = template.render(next_url=next_url)
+    output = renderer.render('refresh.html', {"next_url": next_url})
 
     start_response('200 OK', [('Content-Type', 'text/html')])
-    return [output.encode('utf-8')]
+    return [output]

@@ -1,8 +1,11 @@
 import http.cookies
-from middleware import allowverbs
+try:
+    from middleware import allowverbs
+except ImportError:
+    from infra.middleware import allowverbs
 
 @allowverbs('POST')
-def application(environ, start_response):
+def application(environ, start_response, **kwargs):
     cookie = http.cookies.SimpleCookie()
     
     # Expire the Access Token
@@ -10,7 +13,7 @@ def application(environ, start_response):
     cookie['silo_token']['path'] = '/'
     cookie['silo_token']['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
 
-    # Expire the Refresh Token (Must match the original path!)
+    # Expire the Refresh Token
     cookie['refresh_token'] = ''
     cookie['refresh_token']['path'] = '/refresh'
     cookie['refresh_token']['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
