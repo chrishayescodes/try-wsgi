@@ -73,7 +73,17 @@ export JWT_PRIVATE_KEY_PATH=/etc/jwt-keys/jwt-private.pem
 echo "Starting Gunicorn..."
 pkill gunicorn || true
 cd /var/www/silos
-# Run gunicorn in the background and log output
-gunicorn --bind 0.0.0.0:8000 wsgi:application --daemon --access-logfile /var/log/gunicorn-access.log --error-logfile /var/log/gunicorn-error.log
+
+# Base Gunicorn command
+GUNICORN_CMD="gunicorn --bind 0.0.0.0:8000 wsgi:application --daemon --access-logfile /var/log/gunicorn-access.log --error-logfile /var/log/gunicorn-error.log"
+
+# Add debug flags if DEBUG env var is set to true
+if [ "$DEBUG" = "true" ]; then
+    echo "Debug mode enabled: capturing output and setting log level to debug."
+    GUNICORN_CMD="$GUNICORN_CMD --capture-output --log-level debug"
+fi
+
+# Execute Gunicorn
+$GUNICORN_CMD
 
 echo "Deployment complete."

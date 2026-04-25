@@ -5,7 +5,8 @@
         "context": ".." 
     },
     "containerEnv": {
-        "FORCE_REBUILD": "3"
+        "FORCE_REBUILD": "3",
+        "DEBUG": "true"
     },
     "mounts": [
         "source=${localWorkspaceFolder}/.devcontainer/secrets,target=/etc/jwt-keys,type=bind,readonly"
@@ -13,5 +14,6 @@
     "forwardPorts": [80],
     "overrideCommand": false,
     "postCreateCommand": "chmod +x postcreate.sh && ./postcreate.sh",
+    "postStartCommand": "tail -f /var/log/gunicorn-error.log",
     "remoteUser": "root"
 }
