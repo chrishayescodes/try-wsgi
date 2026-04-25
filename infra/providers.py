@@ -28,13 +28,17 @@ class AuthProvider:
             private_key = f.read()
 
         now = datetime.datetime.utcnow()
-        
+
+        # Expiry times from environment or defaults
+        access_expiry = int(os.environ.get('JWT_ACCESS_EXP_SECONDS', 15 * 60))
+        refresh_expiry = int(os.environ.get('JWT_REFRESH_EXP_SECONDS', 7 * 24 * 60 * 60))
+
         # Access Token
         access_payload = claims.copy()
         access_payload.update({
             "typ": "access",
             "iat": now,
-            "exp": now + datetime.timedelta(seconds=15)
+            "exp": now + datetime.timedelta(seconds=access_expiry)
         })
         access_token = jwt.encode(access_payload, private_key, algorithm="RS256")
 
@@ -43,8 +47,9 @@ class AuthProvider:
         refresh_payload.update({
             "typ": "refresh",
             "iat": now,
-            "exp": now + datetime.timedelta(days=7)
+            "exp": now + datetime.timedelta(seconds=refresh_expiry)
         })
+
         refresh_token = jwt.encode(refresh_payload, private_key, algorithm="RS256")
 
         return access_token, refresh_token

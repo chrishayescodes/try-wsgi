@@ -68,6 +68,7 @@ service nginx start || service nginx restart
 # Set environment variables for Gunicorn
 export JWT_PUBLIC_KEY_PATH=/etc/jwt-keys/jwt-public.pem
 export JWT_PRIVATE_KEY_PATH=/etc/jwt-keys/jwt-private.pem
+export JWT_ACCESS_EXP_SECONDS=15
 
 # Start Gunicorn
 echo "Starting Gunicorn..."
