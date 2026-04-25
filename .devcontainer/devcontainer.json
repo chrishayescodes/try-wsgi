@@ -1,8 +1,11 @@
 {
-    "name": "Apache Enterprise Silos",
+    "name": "Nginx Gunicorn Silos",
     "build": { 
         "dockerfile": "Dockerfile",
         "context": ".." 
+    },
+    "containerEnv": {
+        "FORCE_REBUILD": "3"
     },
     "mounts": [
         "source=${localWorkspaceFolder}/.devcontainer/secrets,target=/etc/jwt-keys,type=bind,readonly"

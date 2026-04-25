@@ -1,5 +1,5 @@
 #!/bin/bash
-SOURCE_DIR="/workspaces/try-apache"
+SOURCE_DIR="$(pwd)"
 SILO_DIR="/var/www/silos"
 MANIFEST="$SOURCE_DIR/manifest.yaml"
 
@@ -14,80 +14,66 @@ yq e '.infrastructure[].path' "$MANIFEST" | while read path; do
     fi
 done
 
-# Ensure the web server user can access the keys in the mount
-chown -R www-data:www-data /etc/jwt-keys
-chmod 444 /etc/jwt-keys/*.pem
-
-# Add this to postcreate.sh to ensure the directory is searchable by Apache
-chmod 755 /etc/jwt-keys
-chmod 644 /etc/jwt-keys/*.pem
+# Only try to change permissions if the mount is writable
+if touch /etc/jwt-keys/.p-test 2>/dev/null; then
+    chown -R www-data:www-data /etc/jwt-keys
+    chmod 444 /etc/jwt-keys/*.pem
+    chmod 755 /etc/jwt-keys
+    rm /etc/jwt-keys/.p-test
+else
+    echo "Notice: /etc/jwt-keys is read-only, skipping permission changes."
+fi
 
 # 2. Link Global Templates
 ln -sf "$SOURCE_DIR/templates/"* "$SILO_DIR/"
 
 # 3. Deploy Endpoints
 echo "Deploying Endpoints..."
-endpoint_config=""
 
 endpoint_count=$(yq e '.endpoints | length' "$MANIFEST")
 for ((i=0; i<$endpoint_count; i++)); do
     slug=$(yq e ".endpoints[$i].slug" "$MANIFEST" | xargs)
     handler=$(yq e ".endpoints[$i].handler" "$MANIFEST")
-    template=$(yq e ".endpoints[$i].template" "$MANIFEST") # <--- ADD THIS
+    template=$(yq e ".endpoints[$i].template" "$MANIFEST")
     
     # 1. Handle Handler renaming for Root vs Slugs
     if [ -z "$slug" ] || [ "$slug" == "null" ]; then
         target_filename="root_home_silo.py"
-        url_path="/"
     else
         target_filename="${slug}_silo.py"
-        url_path="/$slug"
     fi
     
     ln -sf "$SOURCE_DIR/$handler" "$SILO_DIR/$target_filename"
     
-    # 2. THE FIX: Link the feature-specific template into the flat silo root
+    # 2. Link the feature-specific template into the flat silo root
     if [ "$template" != "null" ]; then
         ln -sf "$SOURCE_DIR/$template" "$SILO_DIR/$(basename $template)"
         echo "Linked Template: $(basename $template)"
     fi
     
-    # 3. Build Apache Route
-    ROUTES_CONFIG="$ROUTES_CONFIG
-    WSGIScriptAlias $url_path $SILO_DIR/$target_filename"
-    
     dos2unix "$SOURCE_DIR/$handler"
     chmod +x "$SOURCE_DIR/$handler"
 done
 
-# 4. Generate Apache Config
-# ... (inside postcreate.sh) ...
+# 4. Link the WSGI router
+ln -sf "$SOURCE_DIR/wsgi.py" "$SILO_DIR/wsgi.py"
 
-# Generate Apache Config
-cat <<EOF > /etc/apache2/sites-available/000-default.conf
-WSGIPythonPath $SILO_DIR
-<VirtualHost *:80>
-    # SECURE PATHS: Outside of the /var/www/ web root
-    SetEnv JWT_PUBLIC_KEY_PATH /etc/jwt-keys/jwt-public.pem
-    SetEnv JWT_PRIVATE_KEY_PATH /etc/jwt-keys/jwt-private.pem
+# 5. Generate Nginx Config
+cp "$SOURCE_DIR/nginx-silo.conf" /etc/nginx/sites-available/default
 
-    DocumentRoot /var/www/html
-    
-    WSGIDaemonProcess python_silo processes=2 threads=15 python-path=$SILO_DIR
-    WSGIProcessGroup python_silo
-    WSGIApplicationGroup %{GLOBAL}
+# 6. Start/Restart services
+echo "Starting Nginx..."
+service nginx start || service nginx restart
 
-    $ROUTES_CONFIG
-    <Directory $SILO_DIR>
-        Options +FollowSymLinks
-        Require all denied
-        # CRITICAL: Only allow execution/reading of py and html
-        # No more .pem files allowed here!
-        <FilesMatch "\.(py|html)$">
-            Require all granted
-        </FilesMatch>
-    </Directory>
-</VirtualHost>
-EOF
+# Set environment variables for Gunicorn
+export JWT_PUBLIC_KEY_PATH=/etc/jwt-keys/jwt-public.pem
+export JWT_PRIVATE_KEY_PATH=/etc/jwt-keys/jwt-private.pem
 
-apache2ctl -k graceful
+# Start Gunicorn
+echo "Starting Gunicorn..."
+pkill gunicorn || true
+cd /var/www/silos
+# Run gunicorn in the background and log output
+gunicorn --bind 0.0.0.0:8000 wsgi:application --daemon --access-logfile /var/log/gunicorn-access.log --error-logfile /var/log/gunicorn-error.log
+
+echo "Deployment complete."

@@ -3,9 +3,9 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
-    apache2 \
+    nginx \
+    gunicorn \
     tree \
-    libapache2-mod-wsgi-py3 \
     python3 \
     python3-jinja2 \
     python3-jwt \
@@ -21,17 +21,12 @@ RUN apt-get update && apt-get install -y \
 RUN wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$(dpkg --print-architecture) -O /usr/bin/yq && \
     chmod +x /usr/bin/yq
 
-# Enable the persistent WSGI engine
-RUN a2enmod wsgi
-
-# Silence FQDN warning
-RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
-
 # Create the private silo directory
 RUN mkdir -p /var/www/silos
 
 # Create a secure directory for keys
 RUN mkdir -p /etc/jwt-keys && chmod 700 /etc/jwt-keys
 
-# Startup command
-CMD ["/bin/bash", "-c", "source /etc/apache2/envvars && exec /usr/sbin/apache2 -D FOREGROUND"]
+# Startup command - the most basic persistent process to keep the container alive.
+# Services are managed by postcreate.sh.
+CMD ["sleep", "infinity"]
