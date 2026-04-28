@@ -1,3 +1,6 @@
+import json
+from urllib.parse import parse_qs
+
 try:
     from middleware import allowverbs, require_jwt, inject_template, inject_auth, json_response, get_auth_cookies
 except ImportError:
@@ -31,7 +34,6 @@ def handle_post(environ, start_response, auth=None, user_claims=None, **kwargs):
         headers.extend(get_auth_cookies(access_token, refresh_token))
 
         start_response('200 OK', headers)
-        import json
         return [json.dumps({"status": "refreshed"}).encode('utf-8')]
 
     except Exception as e:
@@ -39,7 +41,6 @@ def handle_post(environ, start_response, auth=None, user_claims=None, **kwargs):
         return [f"Refresh failed: {str(e)}".encode()]
 
 def handle_get(environ, start_response, renderer, **kwargs):
-    from urllib.parse import parse_qs
     query = parse_qs(environ.get('QUERY_STRING', ''))
     next_url = query.get('next', ['/'])[0]
     
