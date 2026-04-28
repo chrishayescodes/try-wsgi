@@ -1,8 +1,5 @@
 import datetime
-try:
-    from middleware import allowverbs, inject_template, html_response
-except ImportError:
-    from infra.middleware import allowverbs, inject_template, html_response
+from infra.middleware import allowverbs, inject_template, html_response
 
 # --- Pure Logic (Testable) ---
 def get_home_data(now=None):

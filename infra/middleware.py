@@ -5,11 +5,7 @@ import http.cookies
 import logging
 import urllib.parse
 import json
-
-try:
-    from providers import get_container
-except ImportError:
-    from infra.providers import get_container
+from infra.providers import get_container
 
 # Set up a simple logger for the silos
 logging.basicConfig(level=logging.INFO)
@@ -30,12 +26,9 @@ def require_jwt(required_type='access'):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(environ, start_response, **kwargs):
-            # 1. Configuration
-            public_key_path = environ.get('JWT_PUBLIC_KEY_PATH') or \
-                              os.environ.get('JWT_PUBLIC_KEY_PATH') or \
-                              '/etc/jwt-keys/jwt-public.pem'
-                              
-            # 2. Determine which cookie to look for
+            auth = get_container().resolve('auth')
+            
+            # Determine which cookie to look for
             cookie_name = 'silo_token' if required_type == 'access' else 'refresh_token'
             
             cookie_header = environ.get('HTTP_COOKIE', '')
@@ -46,9 +39,7 @@ def require_jwt(required_type='access'):
                 token = cookie[cookie_name].value
 
             if not token:
-                logger.error("Security Failure: No token found in cookies")
-                
-                # Redirect to login silo
+                logger.error(f"Security Failure: No {required_type} token found in cookies")
                 start_response('303 See Other', [
                     ('Location', '/login'),
                     ('Content-Type', 'text/plain')
@@ -56,29 +47,16 @@ def require_jwt(required_type='access'):
                 return [b"Security Error: Redirecting to login..."]
 
             try:
-                if not os.path.exists(public_key_path):
-                    logger.error(f"Public key not found at {public_key_path}")
-                    raise FileNotFoundError(f"Public key not found at {public_key_path}")
-
-                with open(public_key_path, 'r') as f:
-                    public_key = f.read()
-
-                payload = jwt.decode(
-                    token, 
-                    public_key, 
-                    algorithms=["RS256"],
-                    options={"verify_signature": True, "verify_exp": True}
-                )
-
-                if payload.get('typ') != required_type:
-                    start_response('403 Forbidden', [('Content-Type', 'text/plain')])
-                    return [b"Security Error: Token type mismatch"]
-
+                payload = auth.validate_token(token, required_type=required_type)
                 environ['user_claims'] = payload
                 kwargs['user_claims'] = payload
                 return func(environ, start_response, **kwargs)
                 
             except jwt.ExpiredSignatureError:
+                if required_type == 'refresh':
+                     start_response('303 See Other', [('Location', '/login')])
+                     return [b"Session expired"]
+
                 script_name = environ.get('SCRIPT_NAME', '')
                 path_info = environ.get('PATH_INFO', '')
                 query_string = environ.get('QUERY_STRING', '')
@@ -130,30 +108,70 @@ def inject_auth(func):
         return func(environ, start_response, **kwargs)
     return wrapper
 
+def json_body(func):
+    """Parses JSON from the request body and injects it into kwargs."""
+    @functools.wraps(func)
+    def wrapper(environ, start_response, **kwargs):
+        try:
+            content_length = int(environ.get('CONTENT_LENGTH', 0))
+            if content_length > 0:
+                body = environ['wsgi.input'].read(content_length)
+                kwargs['body'] = json.loads(body)
+            else:
+                kwargs['body'] = {}
+        except (ValueError, json.JSONDecodeError):
+            start_response('400 Bad Request', [('Content-Type', 'text/plain')])
+            return [b"Invalid JSON body"]
+        
+        return func(environ, start_response, **kwargs)
+    return wrapper
+
+def _process_response(result, default_content_type):
+    """Helper to normalize handler return values."""
+    status = '200 OK'
+    headers = [('Content-Type', default_content_type)]
+    body = result
+
+    if isinstance(result, tuple):
+        if len(result) >= 1:
+            body = result[0]
+        if len(result) >= 2:
+            status = result[1]
+        if len(result) >= 3:
+            headers.extend(result[2])
+    
+    return body, status, headers
+
 def json_response(func):
     @functools.wraps(func)
     def wrapper(environ, start_response, **kwargs):
         result = func(environ, start_response, **kwargs)
-        if isinstance(result, list):
+        if isinstance(result, list): # Already a WSGI response
             return result
             
-        start_response('200 OK', [('Content-Type', 'application/json')])
-        if isinstance(result, (dict, list)):
-            return [json.dumps(result).encode('utf-8')]
-        return [result]
+        body, status, headers = _process_response(result, 'application/json')
+        
+        start_response(status, headers)
+        if isinstance(body, (dict, list)):
+            return [json.dumps(body).encode('utf-8')]
+        if isinstance(body, str):
+            return [body.encode('utf-8')]
+        return [body]
     return wrapper
 
 def html_response(func):
     @functools.wraps(func)
     def wrapper(environ, start_response, **kwargs):
         result = func(environ, start_response, **kwargs)
-        if isinstance(result, list):
+        if isinstance(result, list): # Already a WSGI response
             return result
             
-        start_response('200 OK', [('Content-Type', 'text/html')])
-        if isinstance(result, str):
-            return [result.encode('utf-8')]
-        return [result]
+        body, status, headers = _process_response(result, 'text/html')
+
+        start_response(status, headers)
+        if isinstance(body, str):
+            return [body.encode('utf-8')]
+        return [body]
     return wrapper
 
 def get_auth_cookies(access_token, refresh_token):

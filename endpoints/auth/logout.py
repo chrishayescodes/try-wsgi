@@ -1,7 +1,4 @@
-try:
-    from middleware import allowverbs, delete_auth_cookies
-except ImportError:
-    from infra.middleware import allowverbs, delete_auth_cookies
+from infra.middleware import allowverbs, delete_auth_cookies
 
 @allowverbs('POST')
 def application(environ, start_response, **kwargs):

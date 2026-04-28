@@ -1,8 +1,5 @@
 import os
-try:
-    from middleware import require_jwt, allowverbs, inject_template, html_response
-except ImportError:
-    from infra.middleware import require_jwt, allowverbs, inject_template, html_response
+from infra.middleware import require_jwt, allowverbs, inject_template, html_response
 
 @allowverbs('GET')
 @require_jwt(required_type='access')

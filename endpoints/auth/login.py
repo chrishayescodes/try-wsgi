@@ -1,46 +1,31 @@
 import json
-try:
-    from middleware import allowverbs, inject_template, inject_auth, html_response, json_response, get_auth_cookies
-except ImportError:
-    from infra.middleware import allowverbs, inject_template, inject_auth, html_response, json_response, get_auth_cookies
+from infra.middleware import allowverbs, inject_template, inject_auth, html_response, json_response, json_body, get_auth_cookies
 
 @allowverbs('GET', 'POST')
 @inject_template
 @inject_auth
+@html_response
 def application(environ, start_response, renderer=None, auth=None, **kwargs):
     method = environ.get('REQUEST_METHOD', 'GET')
     
     if method == 'GET':
         return handle_get(renderer)
     
-    return handle_post(environ, start_response, auth)
+    return handle_post(environ, start_response, auth=auth, **kwargs)
 
 def handle_get(renderer):
-    return [renderer.render('login.html')]
+    return renderer.render('login.html')
 
-def handle_post(environ, start_response, auth):
-    try:
-        request_body_size = int(environ.get('CONTENT_LENGTH', 0))
-        request_body = environ['wsgi.input'].read(request_body_size)
-        data = json.loads(request_body)
-        
-        username = data.get('username')
-        password = data.get('password')
+@json_body
+@json_response
+def handle_post(environ, start_response, auth=None, body=None, **kwargs):
+    username = body.get('username')
+    password = body.get('password')
 
-        claims = auth.authenticate(username, password)
-        if claims:
-            access_token, refresh_token = auth.generate_tokens(claims)
+    claims = auth.authenticate(username, password)
+    if claims:
+        access_token, refresh_token = auth.generate_tokens(claims)
+        headers = get_auth_cookies(access_token, refresh_token)
+        return {"status": "success"}, '200 OK', headers
 
-            headers = [('Content-Type', 'application/json')]
-            headers.extend(get_auth_cookies(access_token, refresh_token))
-            
-            start_response('200 OK', headers)
-            return [json.dumps({"status": "success"}).encode('utf-8')]
-
-        else:
-            start_response('401 Unauthorized', [('Content-Type', 'application/json')])
-            return [json.dumps({"status": "error", "error": "Invalid credentials"}).encode('utf-8')]
-
-    except Exception as e:
-        start_response('500 Internal Server Error', [('Content-Type', 'text/plain')])
-        return [f"Server Error: {str(e)}".encode('utf-8')]
+    return {"status": "error", "error": "Invalid credentials"}, '401 Unauthorized', []

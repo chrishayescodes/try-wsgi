@@ -7,12 +7,11 @@ mkdir -p "$SILO_DIR"
 
 # 1. Link Infrastructure (Libraries/Keys)
 echo "Deploying Infrastructure..."
-yq e '.infrastructure[].path' "$MANIFEST" | while read path; do
-    # Only link if the file actually exists and isn't a pem file
-    if [[ -f "$SOURCE_DIR/$path" && "$path" != *.pem ]]; then
-        ln -sf "$SOURCE_DIR/$path" "$SILO_DIR/$(basename $path)"
-    fi
-done
+# Create infra directory in SILO_DIR to maintain package structure
+mkdir -p "$SILO_DIR/infra"
+ln -sf "$SOURCE_DIR/infra/"* "$SILO_DIR/infra/"
+# Keep legacy flattening for now to avoid breaking existing handlers before they are refactored
+ln -sf "$SOURCE_DIR/infra/"* "$SILO_DIR/"
 
 # Only try to change permissions if the mount is writable
 if touch /etc/jwt-keys/.p-test 2>/dev/null; then

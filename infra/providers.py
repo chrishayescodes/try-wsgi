@@ -30,11 +30,39 @@ def get_jinja_env():
         _jinja_env = Environment(loader=FileSystemLoader(template_dir))
     return _jinja_env
 
+import logging
+
+logger = logging.getLogger("silo_logger")
+
 def render_template(template_name, data=None):
     """Simple functional wrapper for Jinja2 rendering."""
     env = get_jinja_env()
     template = env.get_template(template_name)
     return template.render(data or {}).encode('utf-8')
+
+def validate_token(token, required_type='access', public_key_path=None):
+    """Decodes and validates a JWT token."""
+    if not public_key_path:
+        public_key_path = os.environ.get('JWT_PUBLIC_KEY_PATH', '/etc/jwt-keys/jwt-public.pem')
+    
+    if not os.path.exists(public_key_path):
+        logger.error(f"Public key not found at {public_key_path}")
+        raise FileNotFoundError(f"Public key not found at {public_key_path}")
+
+    with open(public_key_path, 'r') as f:
+        public_key = f.read()
+
+    payload = jwt.decode(
+        token, 
+        public_key, 
+        algorithms=["RS256"],
+        options={"verify_signature": True, "verify_exp": True}
+    )
+
+    if payload.get('typ') != required_type:
+        raise jwt.InvalidTokenError("Token type mismatch")
+
+    return payload
 
 def generate_tokens(claims, private_key_path=None):
     """Pure function to generate JWT tokens."""
@@ -70,7 +98,8 @@ SERVICES = {
     'renderer': SimpleNamespace(render=render_template),
     'auth': SimpleNamespace(
         authenticate=mock_authenticate, 
-        generate_tokens=generate_tokens
+        generate_tokens=generate_tokens,
+        validate_token=validate_token
     )
 }
 
