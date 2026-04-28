@@ -13,6 +13,14 @@ ln -sf "$SOURCE_DIR/infra/"* "$SILO_DIR/infra/"
 # Keep legacy flattening for now to avoid breaking existing handlers before they are refactored
 ln -sf "$SOURCE_DIR/infra/"* "$SILO_DIR/"
 
+# 1a. Deploy manifest so WSGI can find it in the silo root
+if [ -f "$MANIFEST" ]; then
+    ln -sf "$MANIFEST" "$SILO_DIR/manifest.yaml"
+else
+    echo "Error: manifest.yaml not found at $MANIFEST"
+    exit 1
+fi
+
 # Only try to change permissions if the mount is writable
 if touch /etc/jwt-keys/.p-test 2>/dev/null; then
     chown -R www-data:www-data /etc/jwt-keys
