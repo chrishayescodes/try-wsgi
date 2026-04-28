@@ -44,7 +44,7 @@ document.getElementById('page-login-form').onsubmit = async (e) => {
 
         if (response.ok && result.status === 'success') {
             localStorage.setItem('is_logged_in', 'true'); // Sync with widget logic
-            window.location.href = '/'; 
+            window.location.replace('/'); 
         } else {
             errorDiv.innerText = result.error || "Login failed";
             errorDiv.style.display = 'block';

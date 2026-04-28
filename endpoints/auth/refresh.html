@@ -36,7 +36,7 @@
             .then(response => {
                 if (response.ok) {
                     // Success: Browser now has the new 'silo_token' cookie
-                    window.location.href = "{{ next_url }}";
+                    window.location.replace("{{ next_url }}");
                 } else {
                     document.getElementById('refresh-status').style.borderLeftColor = "#d83b01";
                     document.getElementById('refresh-status').style.background = "#fde7e9";
