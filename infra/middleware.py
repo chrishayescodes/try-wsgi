@@ -155,3 +155,44 @@ def html_response(func):
             return [result.encode('utf-8')]
         return [result]
     return wrapper
+
+def get_auth_cookies(access_token, refresh_token):
+    """
+    Returns a list of ('Set-Cookie', value) tuples for access and refresh tokens.
+    """
+    cookie = http.cookies.SimpleCookie()
+    cookie['silo_token'] = access_token
+    cookie['silo_token']['httponly'] = True
+    cookie['silo_token']['path'] = '/'
+    cookie['silo_token']['samesite'] = 'Lax'
+
+    cookie['refresh_token'] = refresh_token
+    cookie['refresh_token']['httponly'] = True
+    cookie['refresh_token']['path'] = '/refresh'
+    cookie['refresh_token']['samesite'] = 'Lax'
+    
+    return [
+        ('Set-Cookie', cookie['silo_token'].OutputString()),
+        ('Set-Cookie', cookie['refresh_token'].OutputString())
+    ]
+
+def delete_auth_cookies():
+    """
+    Returns a list of ('Set-Cookie', value) tuples that expire the auth cookies.
+    """
+    cookie = http.cookies.SimpleCookie()
+    
+    # Expire the Access Token
+    cookie['silo_token'] = ''
+    cookie['silo_token']['path'] = '/'
+    cookie['silo_token']['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
+
+    # Expire the Refresh Token
+    cookie['refresh_token'] = ''
+    cookie['refresh_token']['path'] = '/refresh'
+    cookie['refresh_token']['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
+
+    return [
+        ('Set-Cookie', cookie['silo_token'].OutputString()),
+        ('Set-Cookie', cookie['refresh_token'].OutputString())
+    ]

@@ -1,8 +1,7 @@
-import http.cookies
 try:
-    from middleware import allowverbs, require_jwt, inject_template, inject_auth, json_response
+    from middleware import allowverbs, require_jwt, inject_template, inject_auth, json_response, get_auth_cookies
 except ImportError:
-    from infra.middleware import allowverbs, require_jwt, inject_template, inject_auth, json_response
+    from infra.middleware import allowverbs, require_jwt, inject_template, inject_auth, json_response, get_auth_cookies
 
 @allowverbs('POST', 'GET')
 @inject_template
@@ -28,23 +27,10 @@ def handle_post(environ, start_response, auth=None, user_claims=None, **kwargs):
         }
         access_token, refresh_token = auth.generate_tokens(clean_claims)
 
-        cookie = http.cookies.SimpleCookie()
-        cookie['silo_token'] = access_token
-        cookie['silo_token']['httponly'] = True
-        cookie['silo_token']['path'] = '/'
-        cookie['silo_token']['samesite'] = 'Lax'
+        headers = [('Content-Type', 'application/json')]
+        headers.extend(get_auth_cookies(access_token, refresh_token))
 
-        # Regenerating the refresh token too (rotation)
-        cookie['refresh_token'] = refresh_token
-        cookie['refresh_token']['httponly'] = True
-        cookie['refresh_token']['path'] = '/refresh'
-        cookie['refresh_token']['samesite'] = 'Lax'
-
-        start_response('200 OK', [
-            ('Content-Type', 'application/json'),
-            ('Set-Cookie', cookie['silo_token'].OutputString()),
-            ('Set-Cookie', cookie['refresh_token'].OutputString())
-        ])
+        start_response('200 OK', headers)
         import json
         return [json.dumps({"status": "refreshed"}).encode('utf-8')]
 

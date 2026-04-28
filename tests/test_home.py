@@ -8,8 +8,6 @@ import datetime
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # Also add endpoints/home to simulate silo environment
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../endpoints/home')))
-# Also add infra
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../infra')))
 
 from endpoints.home.index import get_home_data, application
 from infra.providers import get_container

@@ -1,26 +1,12 @@
-import http.cookies
 try:
-    from middleware import allowverbs
+    from middleware import allowverbs, delete_auth_cookies
 except ImportError:
-    from infra.middleware import allowverbs
+    from infra.middleware import allowverbs, delete_auth_cookies
 
 @allowverbs('POST')
 def application(environ, start_response, **kwargs):
-    cookie = http.cookies.SimpleCookie()
-    
-    # Expire the Access Token
-    cookie['silo_token'] = ''
-    cookie['silo_token']['path'] = '/'
-    cookie['silo_token']['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
+    headers = [('Location', '/')]
+    headers.extend(delete_auth_cookies())
 
-    # Expire the Refresh Token
-    cookie['refresh_token'] = ''
-    cookie['refresh_token']['path'] = '/refresh'
-    cookie['refresh_token']['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
-
-    start_response('302 Found', [
-        ('Set-Cookie', cookie['silo_token'].OutputString()),
-        ('Set-Cookie', cookie['refresh_token'].OutputString()),
-        ('Location', '/')
-    ])
+    start_response('302 Found', headers)
     return [b"Redirecting..."]
