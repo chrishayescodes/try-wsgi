@@ -1,5 +1,6 @@
 import json
-from infra.middleware import allowverbs, inject_template, inject_auth, html_response, json_response, json_body, get_auth_cookies
+from infra.middleware import allowverbs, inject_template, html_response, json_response, json_body
+from infra.auth import inject_auth, get_auth_cookies
 
 @allowverbs('GET', 'POST')
 @inject_template

@@ -1,7 +1,5 @@
 from jinja2 import Environment, FileSystemLoader
 import os
-import jwt
-import datetime
 from types import SimpleNamespace
 
 # --- Base Interfaces (kept for testing/mocking) ---
@@ -41,56 +39,16 @@ def render_template(template_name, data=None):
     return template.render(data or {}).encode('utf-8')
 
 def validate_token(token, required_type='access', public_key_path=None):
-    """Decodes and validates a JWT token."""
-    if not public_key_path:
-        public_key_path = os.environ.get('JWT_PUBLIC_KEY_PATH', '/etc/jwt-keys/jwt-public.pem')
-    
-    if not os.path.exists(public_key_path):
-        logger.error(f"Public key not found at {public_key_path}")
-        raise FileNotFoundError(f"Public key not found at {public_key_path}")
-
-    with open(public_key_path, 'r') as f:
-        public_key = f.read()
-
-    payload = jwt.decode(
-        token, 
-        public_key, 
-        algorithms=["RS256"],
-        options={"verify_signature": True, "verify_exp": True}
-    )
-
-    if payload.get('typ') != required_type:
-        raise jwt.InvalidTokenError("Token type mismatch")
-
-    return payload
+    from infra.auth import validate_token as _validate_token
+    return _validate_token(token, required_type=required_type, public_key_path=public_key_path)
 
 def generate_tokens(claims, private_key_path=None):
-    """Pure function to generate JWT tokens."""
-    if private_key_path is None:
-        private_key_path = os.environ.get('JWT_PRIVATE_KEY_PATH', '/etc/jwt-keys/jwt-private.pem')
-    
-    with open(private_key_path, 'r') as f:
-        private_key = f.read()
-
-    now = datetime.datetime.utcnow()
-    access_expiry = int(os.environ.get('JWT_ACCESS_EXP_SECONDS', 15 * 60))
-    refresh_expiry = int(os.environ.get('JWT_REFRESH_EXP_SECONDS', 7 * 24 * 60 * 60))
-
-    # Access Token
-    access_payload = {**claims, "typ": "access", "iat": now, "exp": now + datetime.timedelta(seconds=access_expiry)}
-    access_token = jwt.encode(access_payload, private_key, algorithm="RS256")
-
-    # Refresh Token
-    refresh_payload = {**claims, "typ": "refresh", "iat": now, "exp": now + datetime.timedelta(seconds=refresh_expiry)}
-    refresh_token = jwt.encode(refresh_payload, private_key, algorithm="RS256")
-
-    return access_token, refresh_token
+    from infra.auth import generate_tokens as _generate_tokens
+    return _generate_tokens(claims, private_key_path=private_key_path)
 
 def mock_authenticate(username, password):
-    """Mock authentication logic."""
-    if username == "admin" and password == "password123":
-        return {"sub": "1234567890", "name": "Admin User"}
-    return None
+    from infra.auth import mock_authenticate as _mock_authenticate
+    return _mock_authenticate(username, password)
 
 # --- Service Registry ---
 

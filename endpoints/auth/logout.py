@@ -1,4 +1,5 @@
-from infra.middleware import allowverbs, delete_auth_cookies, html_response
+from infra.middleware import allowverbs, html_response
+from infra.auth import delete_auth_cookies
 
 @allowverbs('POST')
 @html_response

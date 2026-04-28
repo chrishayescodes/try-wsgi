@@ -1,5 +1,6 @@
 import os
-from infra.middleware import require_jwt, allowverbs, inject_template, html_response
+from infra.auth import require_jwt
+from infra.middleware import allowverbs, inject_template, html_response
 
 @allowverbs('GET')
 @require_jwt(required_type='access')

@@ -1,7 +1,8 @@
 import json
 import http.cookies
 from urllib.parse import parse_qs
-from infra.middleware import allowverbs, require_jwt, inject_template, inject_auth, json_response, html_response, get_auth_cookies
+from infra.middleware import allowverbs, inject_template, html_response, json_response
+from infra.auth import require_jwt, inject_auth, get_auth_cookies
 
 @allowverbs('POST', 'GET')
 @inject_template
