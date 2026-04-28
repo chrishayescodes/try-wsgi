@@ -44,9 +44,9 @@ The current `Container` in `providers.py` is a minimal shim.
 - [x] **[AUTH-03]** Refactor `logout.py` to use a consistent response pattern.
 
 ### Phase 3: Routing & Reliability
-- [ ] **[ROUTE-01]** Update `wsgi.py` to be more resilient to missing handlers and provide better error logging.
-- [ ] **[ROUTE-02]** Ensure `manifest.yaml` is the single source of truth for all routing logic.
+- [x] **[ROUTE-01]** Update `wsgi.py` to be more resilient to missing handlers and provide better error logging.
+- [x] **[ROUTE-02]** Ensure `manifest.yaml` is the single source of truth for all routing logic.
 
 ### Phase 4: Testing & Validation
-- [ ] **[TEST-01]** Add unit tests for new middleware decorators.
-- [ ] **[TEST-02]** Create an integration test suite that simulates the full login -> access -> refresh lifecycle.
+- [x] **[TEST-01]** Add unit tests for new middleware decorators.
+- [x] **[TEST-02]** Create an integration test suite that simulates the full login -> access -> refresh lifecycle.
