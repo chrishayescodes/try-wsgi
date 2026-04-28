@@ -41,7 +41,7 @@ The current `Container` in `providers.py` is a minimal shim.
 ### Phase 2: Endpoint Refactoring
 - [x] **[AUTH-01]** Refactor `login.py` to use `@json_body` and the enhanced `@json_response`.
 - [x] **[AUTH-02]** Refactor `refresh.py` to use the enhanced `@json_response`.
-- [ ] **[AUTH-03]** Refactor `logout.py` to use a consistent response pattern.
+- [x] **[AUTH-03]** Refactor `logout.py` to use a consistent response pattern.
 
 ### Phase 3: Routing & Reliability
 - [ ] **[ROUTE-01]** Update `wsgi.py` to be more resilient to missing handlers and provide better error logging.
