@@ -34,6 +34,72 @@ This document summarizes the design guidance from the conversation about buildin
   - call each widget with context
   - render the final page using widget fragments
 
+## Extensibility and creating new widgets
+
+The value of a widget system is that new widgets can be created independently and registered without changing core page logic.
+
+A concrete new-widget creation flow:
+
+1. Create the widget module
+   - add `widgets/<widget_name>.py`
+   - define a widget entry point like `render_widget(context, services)`
+   - list required context fields explicitly
+
+2. Add the widget template
+   - place `widgets/<widget_name>.html` next to the module
+   - keep markup scoped to the widget
+   - use the same renderer/interface as other widgets
+
+3. Define widget metadata
+   - add a manifest entry or registration object
+   - include `module`, `template`, `slots`, `order`, and `conditions`
+   - declare required context and optional layout hints
+
+4. Register the widget
+   - add it to the discovery/manifest config
+   - keep page handlers unaware of widget internals
+   - let the discovery service decide when and where to include it
+
+5. Write tests
+   - unit-test the widget logic independently
+   - test missing context fallback behavior
+   - test the widget template rendering if possible
+
+6. Document the widget contract
+   - explain required context values
+   - note injected dependencies such as `renderer`, `logger`, or data services
+   - make widget ownership clear for future contributors
+
+This approach keeps new widget work isolated: authors touch only widget code, widget templates, manifest registration, and tests. Existing pages and shared infrastructure remain unchanged unless new widget requires new context values.
+
+## Widget ecosystem and documentation
+
+A healthy widget system is more than code; it is an ecosystem of documentation and conventions.
+
+- Provide a widget README or contributor guide.
+  - explain the widget lifecycle
+  - document how pages discover and render widgets
+  - include the manifest/registration format
+- Describe how to use widgets in pages.
+  - show examples of page context construction
+  - explain slot names and rendering order
+  - include auth/context requirements
+- Document setup for widget authors.
+  - how to add new widget modules and templates
+  - how to register widgets in the manifest or discovery service
+  - how to add required context values when needed
+- Include guidance for creating custom widgets.
+  - required context contract
+  - dependency injection patterns
+  - graceful failure behavior
+  - testing strategy
+- Treat widgets as reusable components, not ad-hoc page fragments.
+  - keep the contract stable
+  - keep the documentation with the widget ecosystem
+  - make it easy for contributors to add widgets without deep framework knowledge
+
+This ecosystem mindset makes the widget system easier to adopt, maintain, and extend.
+
 ## Context and external data
 
 - Important values like `product_id` should be extracted by the page or middleware layer.
